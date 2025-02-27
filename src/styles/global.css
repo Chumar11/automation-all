@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+  --primary:#007CFB;
+}
+.indexedStep {
+  color: rgb(190, 190, 190);
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+  background-color: #83a1b7;
+  border-radius: 50%;
+  border-style: solid;
+  border-width: 1px;
+  border-color: rgb(206, 206, 206);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border: 4px solid white;
+}
+
+.indexedStep.accomplished {
+  /* background-color: #b78deb; */
+  background-color: var(--primary);
+  color: white;
+  /* border-style: none; */
+}
+
+.accomplished {
+  /* background-color: #b78deb; */
+  color: var(--primary);
+  /* border-style: none; */
+}
+
+.RSPBprogressBar {
+  z-index: 3000;
+  transform: translateX(33%);
+  /* top: -67px; */
+  top:30px;
+  position: fixed;
+  height: 2px;
+  width: 33%;
+  line-height: 1;
+  border-radius: 10px;
+  /* position: absolute; */
+  background-color: rgb(207, 207, 207);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* z-index: 0; */
+  /* margin: 20px auto; */
+  /* margin-left: 296px;
+  margin-top: -10px; */
+}
+
+@media screen and (max-width:1000px) {
+
+  .RSPBprogressBar {
+    transform: translateX(24%);
+
+    width: 50%;
+
+  }
+}
+
+.RSPBprogressBar .RSPBstep {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 0;
+  position: absolute;
+  transform: translateX(-50%);
+  transition-property: all;
+  transition-timing-function: ease;
+  flex-direction: column;
+  margin-top: 11px;
+}
+.box{
+transition: transform 0.5s ease-out; /* Smooth transition */
+}
+
+.move-up {
+  transform: translateY(-100%); /* Move the element up */
+}
+
+/* .RSPBstep:hover{
+  background-color: #b78deb;
+} */
+.RSPBprogressBar .RSPBstep:nth-child(4) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 0;
+  position: absolute;
+  transform: translateX(-50%);
+  transition-property: all;
+  transition-timing-function: ease;
+  flex-direction: column;
+  width: 20%;
+  margin-top: 9px;
+}
+@keyframes newSvg {
+  0% {
+    transform: rotate(0deg) translateX(20px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(20px) rotate(-360deg);
+  }
+}
+
+.newSvg:focus {
+  animation: newSvg 1s linear;
+}
+
+.RSPBprogressBar .RSPBprogressBarText {
+  color: white;
+  font-size: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.RSPBprogressBar .RSPBprogression {
+  position: absolute;
+  transition: width 0.3s ease;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  z-index: -1;
+}
+
+@media screen and (max-width: 480px) {
+  .indexedStep {
+    width: 15px;
+    height: 15px;
+    font-size: 6px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .indexedStep {
+    width: 15px;
+    height: 15px;
+    font-size: 6px;
+  }
+}
+
+::placeholder {
+  color: #929eb6;
+  opacity: 1;
+}
+
+@keyframes bopIn {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.bopIn {
+  animation: bopIn 0.25s ease-in-out;
+}

@@ -1,0 +1,4 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" svg-inline="" role="presentation" focusable="false" tabindex="-1" class="chat-icon chat-smile">
+<path d="M24 48c13.255 0 24-10.745 24-24S37.255 0 24 0 0 10.745 0 24s10.745 24 24 24z" fill="#007CFB" class="color-fill"></path>
+<path d="M33.156 14.578h-20a3.281 3.281 0 00-3.29 3.289V29.51a3.281 3.281 0 003.29 3.289H30.31l4.8 4.8c.178.178.356.178.622.178h.356c.355-.178.533-.534.533-.8V17.867c-.178-1.778-1.689-3.29-3.466-3.29z" fill="#fff"></path>
+<path d="M18.045 26.844c2.222.978 7.555 1.867 11.555-2.4M32 24.356c-.09-1.067-.711-3.023-2.934-2.49" stroke="#007CFB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="color-stroke"></path></svg>
