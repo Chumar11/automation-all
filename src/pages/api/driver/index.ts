@@ -1,10 +1,8 @@
-
 import { browserManager } from '@/src/lib/driverStore';
 import { BrowserSession } from '@/src/lib/models/browser';
 import User from '@/src/lib/models/users';
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Builder } from 'selenium-webdriver';
-import { Options } from 'selenium-webdriver/chrome';
+import { chromium, BrowserContext } from 'playwright';
 
 export default async function handler(
   req: NextApiRequest,
@@ -40,27 +38,24 @@ export default async function handler(
       });
     }
 
-    // Continue with browser creation if limit not reached
-    const options = new Options();
-    options.addArguments('--headless'); 
+    // Launch Playwright browser and create a new context
+    const browser = await chromium.launch({ headless: true });
+    const context: BrowserContext = await browser.newContext();
+    const page = await context.newPage();
     
-    const driver = await new Builder()
-      .forBrowser('chrome')
-      .setChromeOptions(options)
-      .build();
+    await page.goto(url);
 
-    await driver.get(url);
-    
-    const sessionId = await browserManager.createSession(driver, url, userId);
-    
-    res.status(200).json({ 
-      success: true, 
-      sessionId 
+    // Store session using BrowserManager
+    const sessionId = await browserManager.createSession(context, url, userId);
+
+    res.status(200).json({
+      success: true,
+      sessionId
     });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error instanceof Error ? error.message : 'Failed to open website'
     });
   }

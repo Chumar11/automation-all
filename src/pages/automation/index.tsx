@@ -162,40 +162,42 @@ const Index = () => {
         <h2 className="text-xl mb-4">Active Browsers</h2>
         <div className="grid grid-cols-2 gap-4">
           {browsers.map((browser) => (
-            <div
-              key={browser.sessionId}
-              className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
-            >
-              <div className="p-2 bg-gray-100 flex justify-between items-center">
-                <p className="truncate text-sm flex-1">{browser.url}</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleScroll(browser.sessionId)}
-                    className={`px-2 py-1 text-sm rounded ${
-                      browser.isScrolling
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
-                  </button>
-                  <button
-                    onClick={() => handleCloseBrowser(browser.sessionId)}
-                    className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
-                  >
-                    Close
-                  </button>
+            <>
+              <div
+                key={browser.sessionId}
+                className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
+              >
+                <div className="p-2 bg-gray-100 flex justify-between items-center">
+                  <p className="truncate text-sm flex-1">{browser.url}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleScroll(browser.sessionId)}
+                      className={`px-2 py-1 text-sm rounded ${
+                        browser.isScrolling
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                    </button>
+                    <button
+                      onClick={() => handleCloseBrowser(browser.sessionId)}
+                      className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div className="relative w-full" style={{ height: "300px" }}>
+                  <iframe
+                    src={browser.url}
+                    className="absolute inset-0 w-full h-full border-none"
+                    sandbox="allow-same-origin allow-scripts"
+                    title={`Preview of ${browser.url}`}
+                  />
                 </div>
               </div>
-              <div className="relative w-full" style={{ height: "300px" }}>
-                <iframe
-                  src={browser.url}
-                  className="absolute inset-0 w-full h-full border-none"
-                  sandbox="allow-same-origin allow-scripts"
-                  title={`Preview of ${browser.url}`}
-                />
-              </div>
-            </div>
+            </>
           ))}
           {browsers.length === 0 && (
             <p className="text-gray-500 text-center col-span-2">

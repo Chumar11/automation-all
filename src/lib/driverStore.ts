@@ -1,40 +1,40 @@
-import { WebDriver } from 'selenium-webdriver';
+import { BrowserContext, chromium } from 'playwright';
 import { BrowserSession } from './models/browser';
 
 interface ActiveBrowser {
-  driver: WebDriver;
+  context: BrowserContext;
   lastUsed: Date;
 }
 
 class BrowserManager {
   private activeBrowsers: Map<string, ActiveBrowser> = new Map();
 
-  async createSession(driver: WebDriver, url: string, userId: string): Promise<string> {
+  async createSession(context: BrowserContext, url: string, userId: string): Promise<string> {
     const sessionId = Date.now().toString();
-    
-    // Store browser instance in memory
+
+    // Store browser context in memory
     this.activeBrowsers.set(sessionId, {
-      driver,
-      lastUsed: new Date()
+      context,
+      lastUsed: new Date(),
     });
+
     // Store session info in MongoDB
     await BrowserSession.create({
       sessionId,
       userId,
       url,
-      status: 'active'
+      status: 'active',
     });
 
     return sessionId;
   }
 
-
   async closeSession(sessionId: string): Promise<boolean> {
-    const browser = this.activeBrowsers.get(sessionId);
-    
+    const browserSession = this.activeBrowsers.get(sessionId);
+
     try {
-      if (browser) {
-        await browser.driver.quit();
+      if (browserSession) {
+        await browserSession.context.close();
         this.activeBrowsers.delete(sessionId);
       }
 
@@ -46,21 +46,21 @@ class BrowserManager {
 
       return !!session;
     } catch (error) {
-      console.error(`Failed to close browser session ${sessionId}:`, error);
+      console.error(`Failed to close browser session ${sessionId}:, error`);
       return false;
     }
   }
 
-  getDriver(sessionId: string): WebDriver | undefined {
-    return this.activeBrowsers.get(sessionId)?.driver;
+  getContext(sessionId: string): BrowserContext | undefined {
+    return this.activeBrowsers.get(sessionId)?.context;
   }
 
   async cleanupStaleSessions(maxAgeMinutes: number = 30): Promise<void> {
     const staleTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
-    
+
     const staleSessions = await BrowserSession.find({
       status: 'active',
-      lastUsed: { $lt: staleTime }
+      lastUsed: { $lt: staleTime },
     });
 
     for (const session of staleSessions) {
