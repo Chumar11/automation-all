@@ -3,6 +3,9 @@ import { BrowserSession } from '@/src/lib/models/browser';
 import User from '@/src/lib/models/users';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { chromium, BrowserContext } from 'playwright';
+export const config = {
+  runtime: "edge",
+};
 
 export default async function handler(
   req: NextApiRequest,
