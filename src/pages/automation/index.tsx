@@ -6,6 +6,7 @@ interface BrowserSession {
   url: string;
   status: string;
   isScrolling: boolean;
+  ip?: string; // Add IP field
 }
 const Index = () => {
   const { user }: any = useContext(AuthContext);
@@ -86,6 +87,7 @@ const Index = () => {
           url,
           status: "active",
           isScrolling: false,
+          ip: data.ip,
         },
       ]);
       setUrl("");
@@ -195,6 +197,12 @@ const Index = () => {
                     sandbox="allow-same-origin allow-scripts"
                     title={`Preview of ${browser.url}`}
                   />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <p className="truncate text-sm">{browser.url}</p>
+                  {browser.ip && (
+                    <p className="text-xs text-gray-600">IP: {browser.ip}</p>
+                  )}
                 </div>
               </div>
             </>

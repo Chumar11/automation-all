@@ -12,7 +12,7 @@ export default async function handler(
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const { url, userId } = req.body;
+  const { url, userId,ip } = req.body;
 
   try {
     // Get user and their active browser count
@@ -39,18 +39,39 @@ export default async function handler(
     }
 
     // Launch Playwright browser and create a new context
+    // const browser = await chromium.launch({ headless: true });
+    // const context: BrowserContext = await browser.newContext();
+    // const page = await context.newPage();
+    
+    // await page.goto(url);
+
+    // // Store session using BrowserManager
+    // const sessionId = await browserManager.createSession(context, url, userId);
+
+    // res.status(200).json({
+    //   success: true,
+    //   sessionId
+    // });
     const browser = await chromium.launch({ headless: true });
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
     
-    await page.goto(url);
+    await page.goto(url, {
+      timeout: 60000, // Increase timeout to 60 seconds
+      waitUntil: 'domcontentloaded' // Change from 'load' to 'domcontentloaded' for faster resolution
+    });
+    // Get IP information
+    const ipInfo = await page.evaluate(async () => {
+      const response = await fetch('https://api.ipify.org?format=json');
+      return response.json();
+    });
 
-    // Store session using BrowserManager
-    const sessionId = await browserManager.createSession(context, url, userId);
+    const sessionId = await browserManager.createSession(ip,context, url, userId);
 
     res.status(200).json({
       success: true,
-      sessionId
+      sessionId,
+      ip: ipInfo.ip
     });
   } catch (error) {
     console.error('Error:', error);

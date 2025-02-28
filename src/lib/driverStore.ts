@@ -9,7 +9,7 @@ interface ActiveBrowser {
 class BrowserManager {
   private activeBrowsers: Map<string, ActiveBrowser> = new Map();
 
-  async createSession(context: BrowserContext, url: string, userId: string): Promise<string> {
+  async createSession(ip : string , context: BrowserContext, url: string, userId: string): Promise<string> {
     const sessionId = Date.now().toString();
 
     // Store browser context in memory
@@ -24,6 +24,7 @@ class BrowserManager {
       userId,
       url,
       status: 'active',
+      ip,
     });
 
     return sessionId;

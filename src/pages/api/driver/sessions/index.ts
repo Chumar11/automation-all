@@ -36,6 +36,7 @@ export default async function handler(
         sessionId: session.sessionId,
         url: session.url,
         status: session.status,
+        ip: session.ip,
         createdAt: session.createdAt
       }))
     });
