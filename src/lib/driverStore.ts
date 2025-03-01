@@ -18,6 +18,8 @@ class BrowserManager {
       lastUsed: new Date(),
     });
 
+    console.log('Creating session with IP:', ip);
+
     // Store session info in MongoDB
     await BrowserSession.create({
       sessionId,

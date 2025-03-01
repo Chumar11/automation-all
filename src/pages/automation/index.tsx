@@ -1,6 +1,6 @@
 import { AuthContext } from "@/src/contexts/AuthContext";
 import { Card } from "@mui/material";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 interface BrowserSession {
   sessionId: string;
   url: string;
@@ -38,27 +38,63 @@ const Index = () => {
       fetchActiveBrowsers();
     }
   }, [user?._id]);
-  const handleScroll = async (id: string) => {
-    const browser = browsers.find((b) => b.sessionId === id);
-    if (browser) {
-      const updatedBrowsers = browsers.map((b) =>
-        b.sessionId === id ? { ...b, isScrolling: !b.isScrolling } : b
-      );
-      setBrowsers(updatedBrowsers);
-
-      try {
-        await fetch("/api/driver/scroll", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+  useEffect(() => {
+    browsers.forEach((browser) => {
+      if (browser.isScrolling) {
+        const iframe = document.querySelector(
+          `iframe[data-session-id="${browser.sessionId}"]`
+        );
+        (iframe as HTMLIFrameElement)?.contentWindow?.postMessage(
+          {
+            type: "SCROLL_CONTROL",
+            command: "START",
+            speed: scrollSpeed,
           },
-          body: JSON.stringify({ id, scrolling: !browser.isScrolling }),
-        });
-      } catch (error) {
-        console.error("Error controlling scroll:", error);
+          "*"
+        );
       }
-    }
-  };
+    });
+  }, [scrollSpeed, browsers]);
+  const handleScroll = useCallback(
+    (sessionId: string) => {
+      setBrowsers((prev) =>
+        prev.map((browser) => {
+          if (browser.sessionId === sessionId) {
+            // Find the iframe element
+            const iframe = document.querySelector(
+              `iframe[data-session-id="${sessionId}"]`
+            );
+            if (iframe) {
+              // Toggle scrolling state
+              if (!browser.isScrolling) {
+                // Start scrolling
+                (iframe as HTMLIFrameElement).contentWindow?.postMessage(
+                  {
+                    type: "SCROLL_CONTROL",
+                    command: "START",
+                    speed: scrollSpeed,
+                  },
+                  "*"
+                );
+              } else {
+                // Stop scrolling
+                (iframe as HTMLIFrameElement).contentWindow?.postMessage(
+                  {
+                    type: "SCROLL_CONTROL",
+                    command: "STOP",
+                  },
+                  "*"
+                );
+              }
+            }
+            return { ...browser, isScrolling: !browser.isScrolling };
+          }
+          return browser;
+        })
+      );
+    },
+    [scrollSpeed]
+  );
   const handleOpenWebsite = async () => {
     setLoading(true);
     try {
@@ -191,11 +227,19 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="relative w-full" style={{ height: "300px" }}>
-                  <iframe
+                  {/* <iframe
                     src={browser.url}
                     className="absolute inset-0 w-full h-full border-none"
                     sandbox="allow-same-origin allow-scripts"
                     title={`Preview of ${browser.url}`}
+                  /> */}
+                  <iframe
+                    src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
+                    className="absolute inset-0 w-full h-full border-none"
+                    sandbox="allow-same-origin allow-scripts allow-forms"
+                    data-session-id={browser.sessionId}
+                    title={`Preview of ${browser.url}`}
+                    referrerPolicy="no-referrer"
                   />
                 </div>
                 <div className="flex flex-col flex-1">

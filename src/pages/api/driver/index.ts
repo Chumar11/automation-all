@@ -1,18 +1,18 @@
-import { browserManager } from '@/src/lib/driverStore';
-import { BrowserSession } from '@/src/lib/models/browser';
-import User from '@/src/lib/models/users';
-import { NextApiRequest, NextApiResponse } from 'next';
-import { chromium, BrowserContext } from 'playwright';
+import { browserManager } from "@/src/lib/driverStore";
+import { BrowserSession } from "@/src/lib/models/browser";
+import User from "@/src/lib/models/users";
+import { NextApiRequest, NextApiResponse } from "next";
+import { chromium, BrowserContext } from "playwright";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
-  const { url, userId,ip } = req.body;
+  const { url, userId, ip } = req.body;
 
   try {
     // Get user and their active browser count
@@ -20,21 +20,21 @@ export default async function handler(
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
     // Count active browser sessions
     const activeBrowserCount = await BrowserSession.countDocuments({
       userId,
-      status: 'active'
+      status: "active",
     });
 
     // Check if user has reached their browser limit
     if (activeBrowserCount >= user.browserLimit) {
       return res.status(403).json({
         success: false,
-        error: `Browser limit reached. Maximum allowed: ${user.browserLimit}`
+        error: `Browser limit reached. Maximum allowed: ${user.browserLimit}`,
       });
     }
 
@@ -42,7 +42,7 @@ export default async function handler(
     // const browser = await chromium.launch({ headless: true });
     // const context: BrowserContext = await browser.newContext();
     // const page = await context.newPage();
-    
+
     // await page.goto(url);
 
     // // Store session using BrowserManager
@@ -55,29 +55,34 @@ export default async function handler(
     const browser = await chromium.launch({ headless: true });
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
-    
+
     await page.goto(url, {
       timeout: 60000, // Increase timeout to 60 seconds
-      waitUntil: 'domcontentloaded' // Change from 'load' to 'domcontentloaded' for faster resolution
+      waitUntil: "domcontentloaded", // Change from 'load' to 'domcontentloaded' for faster resolution
     });
     // Get IP information
     const ipInfo = await page.evaluate(async () => {
-      const response = await fetch('https://api.ipify.org?format=json');
+      const response = await fetch("https://api.ipify.org?format=json");
       return response.json();
     });
-
-    const sessionId = await browserManager.createSession(ip,context, url, userId);
+    console.log(ipInfo);
+    const sessionId = await browserManager.createSession(
+      ipInfo.ip,
+      context,
+      url,
+      userId
+    );
 
     res.status(200).json({
       success: true,
       sessionId,
-      ip: ipInfo.ip
+      ip: ipInfo.ip,
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to open website'
+      error: error instanceof Error ? error.message : "Failed to open website",
     });
   }
 }
