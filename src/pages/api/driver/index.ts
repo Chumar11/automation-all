@@ -3,86 +3,125 @@ import { BrowserSession } from "@/src/lib/models/browser";
 import User from "@/src/lib/models/users";
 import { NextApiRequest, NextApiResponse } from "next";
 import { chromium, BrowserContext } from "playwright";
+import axios from "axios";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+const WEBSHARE_API_KEY = "z2ismt9vwrseqrp8umihd3op1zhg51spv2nsawja";
+
+async function getWebShareProxies(): Promise<string[]> {
+  try {
+    console.log("Fetching proxies from WebShare...");
+    const response = await axios.get("https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25", {
+      headers: { Authorization: `Token ${WEBSHARE_API_KEY}` },
+    });
+
+    const proxies = response.data.results;
+    if (!proxies.length) return [];
+
+    const workingProxies: string[] = [];
+
+    for (const proxy of proxies) {
+      const proxyString = `${proxy.username}:${proxy.password}@${proxy.proxy_address}:${proxy.port}`;
+      console.log(`Testing proxy: ${proxyString}`);
+
+      if (await testProxy(proxy.proxy_address, proxy.port, proxy.username, proxy.password)) {
+        console.log(`✅ Proxy is working: ${proxyString}`);
+        workingProxies.push(proxyString);
+      }
+    }
+
+    return workingProxies;
+  } catch (error) {
+    console.error("Failed to fetch WebShare proxies:", error);
+    return [];
+  }
+}
+
+async function testProxy(host: string, port: number, username: string, password: string): Promise<boolean> {
+  try {
+    const response = await axios.get("https://api.ipify.org?format=json", {
+      proxy: {
+        protocol: "http",
+        host,
+        port,
+        auth: { username, password },
+      },
+      timeout: 5000,
+    });
+
+    return response.status === 200;
+  } catch (error) {
+    console.warn(`❌ Proxy failed: ${host}:${port}`);
+    return false;
+  }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
-  const { url, userId, ip } = req.body;
+  const { url, userId } = req.body;
 
   try {
-    // Get user and their active browser count
+    console.log("🔍 Fetching user details...");
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found",
-      });
+      return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Count active browser sessions
-    const activeBrowserCount = await BrowserSession.countDocuments({
-      userId,
-      status: "active",
+    const activeBrowserCount = await BrowserSession.countDocuments({ userId, status: "active" });
+    if (activeBrowserCount >= user.browserLimit) {
+      return res.status(403).json({ success: false, error: `Browser limit reached. Maximum allowed: ${user.browserLimit}` });
+    }
+
+    console.log("🌍 Fetching working WebShare proxies...");
+    const proxies = await getWebShareProxies();
+    if (!proxies.length) {
+      return res.status(500).json({ success: false, error: "No working proxies available." });
+    }
+
+    // 🔀 Select a random proxy from the working ones
+    const proxy = proxies[Math.floor(Math.random() * proxies.length)];
+    console.log(`🚀 Using random proxy: ${proxy}`);
+
+    console.log(`🚀 Launching Playwright browser with proxy: ${proxy}`);
+    const browser = await chromium.launch({
+      headless: true,
+      proxy: { server: `http://${proxy}` },
     });
 
-    // Check if user has reached their browser limit
-    if (activeBrowserCount >= user.browserLimit) {
-      return res.status(403).json({
-        success: false,
-        error: `Browser limit reached. Maximum allowed: ${user.browserLimit}`,
-      });
-    }
-
-    // Launch Playwright browser and create a new context
-    // const browser = await chromium.launch({ headless: true });
-    // const context: BrowserContext = await browser.newContext();
-    // const page = await context.newPage();
-
-    // await page.goto(url);
-
-    // // Store session using BrowserManager
-    // const sessionId = await browserManager.createSession(context, url, userId);
-
-    // res.status(200).json({
-    //   success: true,
-    //   sessionId
-    // });
-    const browser = await chromium.launch({ headless: true });
     const context: BrowserContext = await browser.newContext();
     const page = await context.newPage();
 
+    console.log(`🌐 Navigating to ${url}...`);
     await page.goto(url, {
-      timeout: 60000, // Increase timeout to 60 seconds
-      waitUntil: "domcontentloaded", // Change from 'load' to 'domcontentloaded' for faster resolution
+      timeout: 120000,
+      waitUntil: "domcontentloaded",
     });
-    // Get IP information
-    const ipInfo = await page.evaluate(async () => {
-      const response = await fetch("https://api.ipify.org?format=json");
-      return response.json();
-    });
-    console.log(ipInfo);
-    const sessionId = await browserManager.createSession(
-      ipInfo.ip,
-      context,
-      url,
-      userId
-    );
 
-    res.status(200).json({
-      success: true,
-      sessionId,
-      ip: ipInfo.ip,
+    // Extract Proxy Credentials
+    const [proxyCredentials, proxyServer] = proxy.split("@");
+    const [proxyUsername, proxyPassword] = proxyCredentials.split(":");
+    const [proxyHost, proxyPort] = proxyServer.split(":");
+
+    // Fetch IP of current proxy
+    const ipResponse = await axios.get("https://api.ipify.org?format=json", {
+      proxy: {
+        protocol: "http",
+        host: proxyHost,
+        port: parseInt(proxyPort),
+        auth: { username: proxyUsername, password: proxyPassword },
+      },
     });
+
+    const ipInfo = ipResponse.data;
+    console.log(`📡 IP Address: ${ipInfo.ip}`);
+
+    const sessionId = await browserManager.createSession(ipInfo.ip, context, url, userId);
+
+    res.status(200).json({ success: true, sessionId, ip: ipInfo.ip });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to open website",
-    });
+    console.error("❌ Error:", error);
+    res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Failed to open website" });
   }
 }

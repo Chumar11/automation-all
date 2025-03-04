@@ -7,6 +7,7 @@ interface BrowserSession {
   status: string;
   isScrolling: boolean;
   ip?: string; // Add IP field
+  isClickingAds?: boolean; // Add this line
 }
 const Index = () => {
   const { user }: any = useContext(AuthContext);
@@ -153,6 +154,40 @@ const Index = () => {
       console.error("Error closing browser:", error);
     }
   };
+  const handleAdClick = useCallback((sessionId: string) => {
+    setBrowsers((prev) =>
+      prev.map((browser) => {
+        if (browser.sessionId === sessionId) {
+          const iframe = document.querySelector(
+            `iframe[data-session-id="${sessionId}"]`
+          );
+          if (iframe) {
+            if (!browser.isClickingAds) {
+              // Start clicking ads
+              (iframe as HTMLIFrameElement).contentWindow?.postMessage(
+                {
+                  type: "AD_CONTROL",
+                  command: "START_CLICKING",
+                },
+                "*"
+              );
+            } else {
+              // Stop clicking ads
+              (iframe as HTMLIFrameElement).contentWindow?.postMessage(
+                {
+                  type: "AD_CONTROL",
+                  command: "STOP_CLICKING",
+                },
+                "*"
+              );
+            }
+          }
+          return { ...browser, isClickingAds: !browser.isClickingAds };
+        }
+        return browser;
+      })
+    );
+  }, []);
   return (
     <div className="h-screen flex">
       {/* Left panel - Controls */}
@@ -217,6 +252,16 @@ const Index = () => {
                       }`}
                     >
                       {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                    </button>
+                    <button
+                      onClick={() => handleAdClick(browser.sessionId)}
+                      className={`px-2 py-1 text-sm rounded ${
+                        browser.isClickingAds
+                          ? "bg-purple-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {browser.isClickingAds ? "Stop Clicking" : "Click Ads"}
                     </button>
                     <button
                       onClick={() => handleCloseBrowser(browser.sessionId)}
