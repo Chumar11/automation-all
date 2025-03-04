@@ -4,6 +4,7 @@ import User from "@/src/lib/models/users";
 import { NextApiRequest, NextApiResponse } from "next";
 import { chromium, BrowserContext } from "playwright";
 import axios from "axios";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 const WEBSHARE_API_KEY = "z2ismt9vwrseqrp8umihd3op1zhg51spv2nsawja";
 
@@ -20,10 +21,11 @@ async function getWebShareProxies(): Promise<string[]> {
     const workingProxies: string[] = [];
 
     for (const proxy of proxies) {
-      const proxyString = `${proxy.username}:${proxy.password}@${proxy.proxy_address}:${proxy.port}`;
+      const protocol = proxy.protocol || "http"; // Ensure protocol is correctly set
+      const proxyString = `${protocol}://${proxy.username}:${proxy.password}@${proxy.proxy_address}:${proxy.port}`;
       console.log(`Testing proxy: ${proxyString}`);
 
-      if (await testProxy(proxy.proxy_address, proxy.port, proxy.username, proxy.password)) {
+      if (await testProxy(proxy.proxy_address, proxy.port, proxy.username, proxy.password, protocol)) {
         console.log(`✅ Proxy is working: ${proxyString}`);
         workingProxies.push(proxyString);
       }
@@ -36,17 +38,18 @@ async function getWebShareProxies(): Promise<string[]> {
   }
 }
 
-async function testProxy(host: string, port: number, username: string, password: string): Promise<boolean> {
+async function testProxy(
+  host: string,
+  port: number,
+  username: string,
+  password: string,
+  protocol: string
+): Promise<boolean> {
   try {
-    const response = await axios.get("https://api.ipify.org?format=json", {
-      proxy: {
-        protocol: "http",
-        host,
-        port,
-        auth: { username, password },
-      },
-      timeout: 5000,
-    });
+    const proxyUrl = `${protocol}://${username}:${password}@${host}:${port}`;
+    const agent = new HttpsProxyAgent(proxyUrl);
+
+    const response = await axios.get("https://api.ipify.org?format=json", { httpsAgent: agent, timeout: 5000 });
 
     return response.status === 200;
   } catch (error) {
@@ -87,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`🚀 Launching Playwright browser with proxy: ${proxy}`);
     const browser = await chromium.launch({
       headless: true,
-      proxy: { server: `http://${proxy}` },
+      proxy: { server: proxy, bypass: "<-loopback>" },
     });
 
     const context: BrowserContext = await browser.newContext();
@@ -96,23 +99,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`🌐 Navigating to ${url}...`);
     await page.goto(url, {
       timeout: 120000,
-      waitUntil: "domcontentloaded",
+      waitUntil: "networkidle",
     });
 
     // Extract Proxy Credentials
     const [proxyCredentials, proxyServer] = proxy.split("@");
-    const [proxyUsername, proxyPassword] = proxyCredentials.split(":");
+    const [proxyUsername, proxyPassword] = proxyCredentials.replace(/^(http|https):\/\//, "").split(":");
     const [proxyHost, proxyPort] = proxyServer.split(":");
 
     // Fetch IP of current proxy
-    const ipResponse = await axios.get("https://api.ipify.org?format=json", {
-      proxy: {
-        protocol: "http",
-        host: proxyHost,
-        port: parseInt(proxyPort),
-        auth: { username: proxyUsername, password: proxyPassword },
-      },
-    });
+    const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
+    const agent = new HttpsProxyAgent(proxyUrl);
+    const ipResponse = await axios.get("https://api.ipify.org?format=json", { httpsAgent: agent });
 
     const ipInfo = ipResponse.data;
     console.log(`📡 IP Address: ${ipInfo.ip}`);
