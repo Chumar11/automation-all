@@ -126,7 +126,7 @@ await context.addInitScript(() => {
     // Verify IP from inside the browser
     await page.goto("https://api.ipify.org?format=json");
     const ipInfo = await page.evaluate(() => document.body.innerText);
-    console.log(`📡 IP Address from Browser: ${ipInfo}`);
+    // console.log(`📡 IP Address from Browser: ${ipInfo}`);
 
     const sessionId = await browserManager.createSession(ipInfo, context, url, userId);
 
