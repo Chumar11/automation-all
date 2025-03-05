@@ -6,7 +6,8 @@
     "dev": "node server.mjs",
     "build": "next build",
     "start": "NODE_ENV=production node server.mjs",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "npx playwright install"
   },
   "dependencies": {
     "@emotion/cache": "^11.10.5",
