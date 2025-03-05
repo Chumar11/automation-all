@@ -21,7 +21,7 @@ async function getWebShareProxies(): Promise<string[]> {
     const workingProxies: string[] = [];
 
     for (const proxy of proxies) {
-      const protocol = proxy.protocol || "http"; // Ensure protocol is correctly set
+      const protocol = proxy.protocol || "http";
       const proxyString = `${protocol}://${proxy.username}:${proxy.password}@${proxy.proxy_address}:${proxy.port}`;
       console.log(`Testing proxy: ${proxyString}`);
 
@@ -83,17 +83,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ success: false, error: "No working proxies available." });
     }
 
-    // 🔀 Select a random proxy from the working ones
     const proxy = proxies[Math.floor(Math.random() * proxies.length)];
     console.log(`🚀 Using random proxy: ${proxy}`);
+
+    // Extract proxy details
+    const [proxyCredentials, proxyServer] = proxy.split("@");
+    const [proxyUsername, proxyPassword] = proxyCredentials.replace(/^(http|https):\/\//, "").split(":");
+    const [proxyHost, proxyPort] = proxyServer.split(":");
 
     console.log(`🚀 Launching Playwright browser with proxy: ${proxy}`);
     const browser = await chromium.launch({
       headless: true,
-      proxy: { server: proxy, bypass: "<-loopback>" },
+      proxy: {
+        server: `http://${proxyHost}:${proxyPort}`,
+        username: proxyUsername,
+        password: proxyPassword,
+        bypass: "<-loopback>",
+      },
     });
 
     const context: BrowserContext = await browser.newContext();
+
+    // Disable WebRTC leaks
+   // Disable WebRTC leaks
+await context.addInitScript(() => {
+  Object.defineProperty(navigator, "webdriver", { get: () => false });
+
+  if ("mediaDevices" in navigator) {
+    Object.defineProperty(navigator, "mediaDevices", { get: () => undefined });
+  }
+});
+
+
     const page = await context.newPage();
 
     console.log(`🌐 Navigating to ${url}...`);
@@ -102,22 +123,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       waitUntil: "networkidle",
     });
 
-    // Extract Proxy Credentials
-    const [proxyCredentials, proxyServer] = proxy.split("@");
-    const [proxyUsername, proxyPassword] = proxyCredentials.replace(/^(http|https):\/\//, "").split(":");
-    const [proxyHost, proxyPort] = proxyServer.split(":");
+    // Verify IP from inside the browser
+    await page.goto("https://api.ipify.org?format=json");
+    const ipInfo = await page.evaluate(() => document.body.innerText);
+    console.log(`📡 IP Address from Browser: ${ipInfo}`);
 
-    // Fetch IP of current proxy
-    const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
-    const agent = new HttpsProxyAgent(proxyUrl);
-    const ipResponse = await axios.get("https://api.ipify.org?format=json", { httpsAgent: agent });
+    const sessionId = await browserManager.createSession(ipInfo, context, url, userId);
 
-    const ipInfo = ipResponse.data;
-    console.log(`📡 IP Address: ${ipInfo.ip}`);
+    res.status(200).json({ success: true, sessionId, ip: ipInfo });
 
-    const sessionId = await browserManager.createSession(ipInfo.ip, context, url, userId);
-
-    res.status(200).json({ success: true, sessionId, ip: ipInfo.ip });
+    await browser.close();
   } catch (error) {
     console.error("❌ Error:", error);
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Failed to open website" });
