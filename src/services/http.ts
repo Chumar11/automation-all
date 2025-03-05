@@ -4,7 +4,7 @@ const baseUrl = "http://147.93.102.89:3000";
 console.log(" baseUrl", baseUrl);
 
 const http = axios.create({
-  baseURL: `${baseUrl}/api`,
+  baseURL: `/api`,
   timeout: 30000,
 });
 
