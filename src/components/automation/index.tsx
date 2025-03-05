@@ -16,6 +16,7 @@ const Automation = () => {
   const [loading, setLoading] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [browsers, setBrowsers] = useState<BrowserSession[]>([]);
+  const [numInstances, setNumInstances] = useState<number | null>(1); // New state for number input
 
   useEffect(() => {
     const fetchActiveBrowsers = async () => {
@@ -98,35 +99,44 @@ const Automation = () => {
     [scrollSpeed]
   );
   const handleOpenWebsite = async () => {
+    if (!url.trim()) {
+      alert("Please enter a valid URL.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch("/api/driver", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url,
-          userId: user._id,
-        }),
-      });
+      const responses = await Promise.all(
+        Array.from({ length: numInstances ?? 1 }, async () => {
+          const response = await fetch("/api/driver", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url,
+              userId: user._id,
+            }),
+          });
+          return response.json();
+        })
+      );
 
-      const data = await response.json();
-      if (!data.success) {
-        // Show error message to user
-        alert(data.error); // Consider using a proper toast/notification system
-        throw new Error(data.error);
+      const successfulResponses = responses.filter((data) => data.success);
+      if (successfulResponses.length === 0) {
+        alert("Failed to open any browsers. Please try again.");
+        return;
       }
 
       setBrowsers((prev) => [
         ...prev,
-        {
+        ...successfulResponses.map((data) => ({
           sessionId: data.sessionId,
           url,
           status: "active",
           isScrolling: false,
           ip: data.ip,
-        },
+        })),
       ]);
       setUrl("");
     } catch (error) {
@@ -209,6 +219,20 @@ const Automation = () => {
             placeholder="Enter website URL"
             className="w-full p-2 border rounded"
           />
+          <input
+            type="number"
+            value={numInstances ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setNumInstances(value === "" ? null : Math.max(1, Number(value)));
+            }}
+            onBlur={() => {
+              if (numInstances === null) setNumInstances(1); // Default to 1 if empty
+            }}
+            className="w-full p-2 border rounded"
+            placeholder="Number of browsers"
+          />
+
           <button
             onClick={handleOpenWebsite}
             disabled={loading || !url}
