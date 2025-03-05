@@ -109,7 +109,7 @@ export default function CustomizedDialogs({ open, setOpen }: DialogProps) {
         onClose={handleClose}
         aria-labelledby="customized-dialog-title"
         open={open}
-        sx={{ opacity: 0.99 }}
+        // sx={{ opacity: 0.99 }}
       >
         <DialogTitle
           sx={{

@@ -9,7 +9,7 @@ interface ActiveBrowser {
 class BrowserManager {
   private activeBrowsers: Map<string, ActiveBrowser> = new Map();
 
-  async createSession(context: BrowserContext, url: string, userId: string): Promise<string> {
+  async createSession(ip : string , context: BrowserContext, url: string, userId: string): Promise<string> {
     const sessionId = Date.now().toString();
 
     // Store browser context in memory
@@ -18,12 +18,15 @@ class BrowserManager {
       lastUsed: new Date(),
     });
 
+    console.log('Creating session with IP:', ip);
+
     // Store session info in MongoDB
     await BrowserSession.create({
       sessionId,
       userId,
       url,
       status: 'active',
+      ip,
     });
 
     return sessionId;

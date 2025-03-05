@@ -11,6 +11,10 @@ const browserSessionSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  ip: {
+    type: String,
+    required: false
+  },
   url: {
     type: String,
     required: true
