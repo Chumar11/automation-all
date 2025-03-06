@@ -39,6 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'beforeend',
         `<script>
           let scrollInterval = null;
+          let scrollDirection = 1; // 1 for downward, -1 for upward
           
           function startScrolling(speed) {
             // Clear any existing interval first
@@ -47,17 +48,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
             
             scrollInterval = setInterval(() => {
-              window.scrollBy(0, speed);
-              if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight) {
-                window.scrollTo(0, 0);
+              // Get current scroll position and document height
+              const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+              const totalHeight = Math.max(
+                document.body.scrollHeight,
+                document.documentElement.scrollHeight,
+                document.body.offsetHeight,
+                document.documentElement.offsetHeight
+              );
+              const windowHeight = window.innerHeight;
+              
+              // Check if we've reached the bottom or top
+              if (currentScroll + windowHeight >= totalHeight - 10) { // -10 for buffer
+                scrollDirection = -1; // Change direction to scroll up
+              } else if (currentScroll <= 0) {
+                scrollDirection = 1; // Change direction to scroll down
               }
-            }, 50);
+
+              // Perform the scroll
+              window.scrollBy({
+                top: speed * scrollDirection,
+                behavior: 'auto'
+              });
+            }, 20); // Reduced interval for smoother scrolling
           }
 
           function stopScrolling() {
             if (scrollInterval) {
               clearInterval(scrollInterval);
               scrollInterval = null;
+              scrollDirection = 1;
             }
           }
 
@@ -76,6 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           window.addEventListener('unload', function() {
             stopScrolling();
           });
+          
         </script>`
       );
     }

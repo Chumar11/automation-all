@@ -1,10 +1,10 @@
 import axios from "axios";
 import { getToken } from "./getToken";
-const baseUrl = "http://147.93.102.89:3000";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 console.log(" baseUrl", baseUrl);
 
 const http = axios.create({
-  baseURL: `/api`,
+  baseURL: `${baseUrl}/api`,
   timeout: 30000,
 });
 
