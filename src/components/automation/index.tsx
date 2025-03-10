@@ -1,6 +1,14 @@
 import { AuthContext } from "@/src/contexts/AuthContext";
 import { Box, Card } from "@mui/material";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import the arrow icon
+
 import toast from "react-hot-toast";
 interface BrowserSession {
   sessionId: string;
@@ -18,7 +26,59 @@ const Automation = () => {
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [browsers, setBrowsers] = useState<BrowserSession[]>([]);
   const [numInstances, setNumInstances] = useState<number | null>(1); // New state for number input
+  const initialUrls = useRef<{ [sessionId: string]: string }>({});
+  console.log("initialUrls", initialUrls);
+  const handleNavigateBack = (sessionId: string) => {
+    setBrowsers((prev) =>
+      prev.map((browser) => {
+        if (browser.sessionId === sessionId) {
+          const iframe = document.querySelector(
+            `iframe[data-session-id="${sessionId}"]`
+          ) as HTMLIFrameElement;
 
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage(
+              {
+                type: "NAVIGATE_BACK",
+                url: browser.url, // Navigate back to the initial URL
+              },
+              "*"
+            );
+          }
+          return { ...browser, url: browser.url }; // Reset the URL to the initial URL
+        }
+        return browser;
+      })
+    );
+  };
+
+  useEffect(() => {
+    const handleNavigation = (event: MessageEvent) => {
+      if (event.data.type === "NAVIGATE") {
+        const { url } = event.data;
+        console.log("url", url);
+        const iframeElement = (event.source as Window)
+          ?.frameElement as HTMLIFrameElement | null;
+
+        if (iframeElement?.dataset?.sessionId) {
+          setBrowsers((prev) =>
+            prev.map((browser) => {
+              if (browser.sessionId === iframeElement.dataset.sessionId) {
+                return { ...browser, url };
+              }
+              return browser;
+            })
+          );
+        }
+      }
+    };
+
+    window.addEventListener("message", handleNavigation);
+
+    return () => {
+      window.removeEventListener("message", handleNavigation);
+    };
+  }, []);
   useEffect(() => {
     const fetchActiveBrowsers = async () => {
       try {
@@ -132,13 +192,17 @@ const Automation = () => {
 
       setBrowsers((prev) => [
         ...prev,
-        ...successfulResponses.map((data) => ({
-          sessionId: data.sessionId,
-          url,
-          status: "active",
-          isScrolling: false,
-          ip: data.ip,
-        })),
+        ...successfulResponses.map((data) => {
+          // Store the initial URL for this session
+          initialUrls.current[data.sessionId] = url;
+          return {
+            sessionId: data.sessionId,
+            url,
+            status: "active",
+            isScrolling: false,
+            ip: data.ip,
+          };
+        }),
       ]);
       setUrl("");
     } catch (error) {
@@ -327,70 +391,71 @@ const Automation = () => {
         <h2 className="text-xl mb-4">Active Browsers</h2>
         <div className="grid grid-cols-2 gap-4">
           {browsers.map((browser) => {
-            console.log(browser.url, "browser.url");
+            console.log("browser", browser);
+            const showBackArrow = browser.url !== browser.url; // Always false, but you can adjust this logic
+            console.log("browser", showBackArrow);
             return (
-              <>
-                <div
-                  key={browser.sessionId}
-                  className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
-                >
-                  <div className="p-2 bg-gray-100 flex justify-between items-center">
-                    <p className="truncate text-sm flex-1">{browser.url}</p>
-                    <div className="flex items-center gap-2">
+              <div
+                key={browser.sessionId}
+                className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
+              >
+                <div className="p-2 bg-gray-100 flex justify-between items-center">
+                  <p className="truncate text-sm flex-1">{browser.url}</p>
+                  <div className="flex items-center gap-2">
+                    {showBackArrow && (
                       <button
-                        onClick={() => handleScroll(browser.sessionId)}
-                        className={`px-2 py-1 text-sm rounded ${
-                          browser.isScrolling
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
+                        onClick={() => handleNavigateBack(browser.sessionId)}
+                        className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
                       >
-                        {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                        <ArrowBackIcon fontSize="small" />
                       </button>
-                      <button
-                        onClick={() => handleRandomClick(browser.sessionId)}
-                        className={`px-2 py-1 text-sm rounded ${
-                          browser.isAutoClicking
-                            ? "bg-purple-500 text-white"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {browser.isAutoClicking
-                          ? "Stop Clicking"
-                          : "Start Auto Click"}
-                      </button>
-                      <button
-                        onClick={() => handleCloseBrowser(browser.sessionId)}
-                        className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                  <div className="relative w-full" style={{ height: "300px" }}>
-                    {/* <iframe
-                    src={browser.url}
-                    className="absolute inset-0 w-full h-full border-none"
-                    sandbox="allow-same-origin allow-scripts"
-                    title={`Preview of ${browser.url}`}
-                  /> */}
-                    <iframe
-                      src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
-                      className="absolute inset-0 w-full h-full border-none"
-                      sandbox="allow-same-origin allow-scripts allow-forms"
-                      data-session-id={browser.sessionId}
-                      title={`Preview of ${browser.url}`}
-                      // referrerPolicy="no-referrer"s
-                    />
-                  </div>
-                  <div className="flex flex-col flex-1">
-                    <p className="truncate text-sm">{browser.url}</p>
-                    {browser.ip && (
-                      <p className="text-xs text-gray-600">IP: {browser.ip}</p>
                     )}
+                    <button
+                      onClick={() => handleScroll(browser.sessionId)}
+                      className={`px-2 py-1 text-sm rounded ${
+                        browser.isScrolling
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                    </button>
+                    <button
+                      onClick={() => handleRandomClick(browser.sessionId)}
+                      className={`px-2 py-1 text-sm rounded ${
+                        browser.isAutoClicking
+                          ? "bg-purple-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {browser.isAutoClicking
+                        ? "Stop Clicking"
+                        : "Start Auto Click"}
+                    </button>
+                    <button
+                      onClick={() => handleCloseBrowser(browser.sessionId)}
+                      className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
+                    >
+                      Close
+                    </button>
                   </div>
                 </div>
-              </>
+                <div className="relative w-full" style={{ height: "300px" }}>
+                  <iframe
+                    src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
+                    className="absolute inset-0 w-full h-full border-none"
+                    sandbox="allow-same-origin allow-scripts allow-forms"
+                    data-session-id={browser.sessionId}
+                    title={`Preview of ${browser.url}`}
+                  />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <p className="truncate text-sm">{browser.url}</p>
+                  {browser.ip && (
+                    <p className="text-xs text-gray-600">IP: {browser.ip}</p>
+                  )}
+                </div>
+              </div>
             );
           })}
           {browsers.length === 0 && (

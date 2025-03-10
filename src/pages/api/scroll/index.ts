@@ -81,7 +81,92 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               scrollDirection = 1;
             }
           }
-console.log("script loaded successfully from web speed",window.location.href);
+
+          // Handle click events
+            function handleNavigation(url, type = 'NAVIGATE') {
+      try {
+        window.parent.postMessage({
+          type: type,
+          url: url,
+          timestamp: Date.now()
+        }, '*');
+      } catch (e) {
+        console.warn('Navigation handling error:', e);
+      }
+    }
+
+    // Intercept all clicks
+    document.addEventListener('click', function(event) {
+      const target = event.target;
+      const linkElement = target.closest('a');
+      
+      if (linkElement) {
+        event.preventDefault();
+        const href = linkElement.href || linkElement.getAttribute('href');
+        
+        if (href) {
+          // Handle different URL types
+          if (href.startsWith('javascript:')) {
+            return; // Skip javascript: URLs
+          }
+          
+          if (href.startsWith('mailto:') || href.startsWith('tel:')) {
+            window.location.href = href;
+            return;
+          }
+          
+          handleNavigation(href);
+        }
+      }
+    });
+
+    // Intercept form submissions
+    document.addEventListener('submit', function(event) {
+      event.preventDefault();
+      const form = event.target;
+      
+      handleNavigation(form.action, 'FORM_SUBMIT');
+    });
+
+    // Intercept programmatic navigation
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function() {
+      const url = arguments[2];
+      handleNavigation(url, 'HISTORY_PUSH');
+      return originalPushState.apply(this, arguments);
+    };
+
+    history.replaceState = function() {
+      const url = arguments[2];
+      handleNavigation(url, 'HISTORY_REPLACE');
+      return originalReplaceState.apply(this, arguments);
+    };
+
+    // Handle hash changes
+    window.addEventListener('hashchange', function(event) {
+      handleNavigation(event.newURL, 'HASH_CHANGE');
+    });
+
+    // Add CORS handling for XHR/Fetch
+    const originalXHR = window.XMLHttpRequest;
+    window.XMLHttpRequest = function() {
+      const xhr = new originalXHR();
+      const originalOpen = xhr.open;
+      
+      xhr.open = function() {
+        try {
+          originalOpen.apply(xhr, arguments);
+          xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        } catch (e) {
+          console.warn('XHR intercept error:', e);
+        }
+      };
+      
+      return xhr;
+    };
+
           window.addEventListener('message', function(event) {
             const { type, command, speed } = event.data;
             if (type === 'SCROLL_CONTROL') {
@@ -102,9 +187,12 @@ console.log("script loaded successfully from web speed",window.location.href);
       );
     }
 
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+  // Update the response headers
+res.setHeader('Content-Type', 'text/html');
+res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+res.setHeader('Access-Control-Allow-Origin', '*');
+res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type');
 
     return res.send(root.toString());
   } catch (error) {
