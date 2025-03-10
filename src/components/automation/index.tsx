@@ -400,16 +400,16 @@ const Automation = () => {
                 className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
               >
                 <div className="p-2 bg-gray-100 flex justify-between items-center">
+                  {showBackArrow && (
+                    <button
+                      onClick={() => handleNavigateBack(browser.sessionId)}
+                      className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
+                    >
+                      <ArrowBackIcon fontSize="small" />
+                    </button>
+                  )}
                   <p className="truncate text-sm flex-1">{browser.url}</p>
                   <div className="flex items-center gap-2">
-                    {showBackArrow && (
-                      <button
-                        onClick={() => handleNavigateBack(browser.sessionId)}
-                        className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
-                      >
-                        <ArrowBackIcon fontSize="small" />
-                      </button>
-                    )}
                     <button
                       onClick={() => handleScroll(browser.sessionId)}
                       className={`px-2 py-1 text-sm rounded ${
@@ -444,7 +444,7 @@ const Automation = () => {
                   <iframe
                     src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
                     className="absolute inset-0 w-full h-full border-none"
-                    sandbox="allow-same-origin allow-scripts allow-forms"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
                     data-session-id={browser.sessionId}
                     title={`Preview of ${browser.url}`}
                   />

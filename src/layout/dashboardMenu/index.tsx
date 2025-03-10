@@ -38,6 +38,7 @@ import Logout from "@mui/icons-material/Logout";
 import Settings from "@mui/icons-material/Settings";
 import PersonAdd from "@mui/icons-material/PersonAdd";
 import { Person } from "@mui/icons-material";
+import { themColor } from "@/src/theme/themColor";
 
 export default function DashboardMenu({ ...props }) {
   // const router = useRouter();
@@ -164,6 +165,29 @@ export default function DashboardMenu({ ...props }) {
               </ListItem>
             ))}
           </List>
+          <Button
+            sx={{
+              backgroundColor: "transparent",
+              color: themColor.secondary,
+              border: `1px solid ${themColor.tertiary}`,
+              fontSize: ".88rem",
+              fontWeight: 400,
+              padding: "1rem 0.99rem",
+              "&:hover": {
+                backgroundColor: themColor.white,
+                borderColor: "#83a1b8",
+              },
+            }}
+            variant="outlined"
+            size="small"
+            startIcon={<Logout />}
+            onClick={() => {
+              localStorage.clear();
+              router.reload();
+            }}
+          >
+            Logout
+          </Button>
           {/* <List>
             <ListItem
               disablePadding

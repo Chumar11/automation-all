@@ -1,17 +1,20 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import parse from 'node-html-parser';
+import type { NextApiRequest, NextApiResponse } from "next";
+import parse from "node-html-parser";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const { url } = req.query;
-    console.log('🔍 Fetching URL:', url);
-    
-    if (!url || typeof url !== 'string') {
-      return res.status(400).json({ error: 'URL parameter is required' });
+    console.log("🔍 Fetching URL:", url);
+
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "URL parameter is required" });
     }
 
     const baseUrl = new URL(url).origin;
@@ -21,23 +24,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const root = parse(html);
 
     // Fix relative URLs
-    root.querySelectorAll('[src], [href]').forEach(element => {
-      ['src', 'href'].forEach(attr => {
+    root.querySelectorAll("[src], [href]").forEach((element) => {
+      ["src", "href"].forEach((attr) => {
         const value = element.getAttribute(attr);
-        if (value && !value.startsWith('http') && !value.startsWith('//')) {
+        if (value && !value.startsWith("http") && !value.startsWith("//")) {
           element.setAttribute(
             attr,
-            value.startsWith('/') ? `${baseUrl}${value}` : `${baseUrl}/${value}`
+            value.startsWith("/") ? `${baseUrl}${value}` : `${baseUrl}/${value}`
           );
         }
       });
     });
 
     // Updated scroll control script
-    const head = root.querySelector('head');
+    const head = root.querySelector("head");
     if (head) {
       head.insertAdjacentHTML(
-        'beforeend',
+        "beforeend",
         `<script>
           let scrollInterval = null;
           let scrollDirection = 1; // 1 for downward, -1 for upward
@@ -187,16 +190,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
     }
 
-  // Update the response headers
-res.setHeader('Content-Type', 'text/html');
-res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-res.setHeader('Access-Control-Allow-Origin', '*');
-res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type');
+    // Update the response headers
+    res.setHeader("Content-Type", "text/html");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "X-Requested-With, Content-Type"
+    );
 
     return res.send(root.toString());
   } catch (error) {
-    console.error('Proxy error:', error);
-    return res.status(500).json({ error: 'Failed to fetch content' });
+    console.error("Proxy error:", error);
+    return res.status(500).json({ error: "Failed to fetch content" });
   }
 }
