@@ -25,32 +25,13 @@ const Automation = () => {
   const [loading, setLoading] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [browsers, setBrowsers] = useState<BrowserSession[]>([]);
+  const [forBack, setForBack] = useState<BrowserSession[]>([]);
   const [numInstances, setNumInstances] = useState<number | null>(1); // New state for number input
   const initialUrls = useRef<{ [sessionId: string]: string }>({});
-  console.log("initialUrls", initialUrls);
-  const handleNavigateBack = (sessionId: string) => {
-    setBrowsers((prev) =>
-      prev.map((browser) => {
-        if (browser.sessionId === sessionId) {
-          const iframe = document.querySelector(
-            `iframe[data-session-id="${sessionId}"]`
-          ) as HTMLIFrameElement;
 
-          if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage(
-              {
-                type: "NAVIGATE_BACK",
-                url: browser.url, // Navigate back to the initial URL
-              },
-              "*"
-            );
-          }
-          return { ...browser, url: browser.url }; // Reset the URL to the initial URL
-        }
-        return browser;
-      })
-    );
-  };
+  console.log(forBack, "forBack");
+  const showBackArrow = true; // Always show the back arrow
+  console.log("initialUrls", initialUrls);
 
   useEffect(() => {
     const handleNavigation = (event: MessageEvent) => {
@@ -86,6 +67,12 @@ const Automation = () => {
         const data = await response.json();
         if (data.success) {
           setBrowsers(
+            data.sessions.map((session: any) => ({
+              ...session,
+              isScrolling: false,
+            }))
+          );
+          setForBack(
             data.sessions.map((session: any) => ({
               ...session,
               isScrolling: false,
@@ -271,6 +258,50 @@ const Automation = () => {
       })
     );
   }, []);
+  // useEffect(() => {
+  //   if (browsers) {
+  //     setForBack(browsers);
+  //   }
+  // }, []);
+  const handleNavigateBack = (sessionId: string) => {
+    const currentBrowser = browsers.find((b) => b.sessionId === sessionId);
+    const originalBrowser = forBack.find((b) => b.sessionId === sessionId);
+    console.log("currentBrowser", currentBrowser);
+    console.log("originalBrowser", originalBrowser);
+    if (!currentBrowser) return;
+
+    const iframe = document.querySelector(
+      `iframe[data-session-id="${sessionId}"]`
+    ) as HTMLIFrameElement;
+
+    if (iframe && iframe.contentWindow) {
+      // Compare current URL with original URL
+      const targetUrl = originalBrowser?.url || currentBrowser.url;
+
+      if (currentBrowser.url !== targetUrl) {
+        // Update iframe src directly
+        iframe.src = `/api/scroll?url=${encodeURIComponent(targetUrl)}`;
+
+        // Send navigation message to iframe
+        iframe.contentWindow.postMessage(
+          {
+            type: "NAVIGATE",
+            url: targetUrl,
+          },
+          "*"
+        );
+
+        // Update browser state with original URL
+        setBrowsers((prev) =>
+          prev.map((browser) =>
+            browser.sessionId === sessionId
+              ? { ...browser, url: targetUrl }
+              : browser
+          )
+        );
+      }
+    }
+  };
   return (
     <div className=" flex">
       {/* Left panel - Controls */}
@@ -391,9 +422,9 @@ const Automation = () => {
         <h2 className="text-xl mb-4">Active Browsers</h2>
         <div className="grid grid-cols-2 gap-4">
           {browsers.map((browser) => {
-            console.log("browser", browser);
-            const showBackArrow = browser.url !== browser.url; // Always false, but you can adjust this logic
-            console.log("browser", showBackArrow);
+            // console.log("browser", browser);
+            // const showBackArrow = browser.url !== browser.url; // Always false, but you can adjust this logic
+            // console.log("browser", showBackArrow);
             return (
               <div
                 key={browser.sessionId}
