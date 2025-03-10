@@ -1,6 +1,7 @@
 import { AuthContext } from "@/src/contexts/AuthContext";
 import { Box, Card } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 interface BrowserSession {
   sessionId: string;
   url: string;
@@ -41,6 +42,7 @@ const Automation = () => {
     }
   }, [user?._id]);
   useEffect(() => {
+    console.log("herlo from there");
     browsers.forEach((browser) => {
       if (browser.isScrolling) {
         const iframe = document.querySelector(
@@ -293,6 +295,24 @@ const Automation = () => {
           >
             Start Scrolling All
           </button>
+          <button
+            onClick={async () => {
+              try {
+                await Promise.all(
+                  browsers.map((browser) =>
+                    handleCloseBrowser(browser.sessionId)
+                  )
+                );
+                toast.success("All browsers closed successfully");
+              } catch (error) {
+                console.error("Error closing all browsers:", error);
+              }
+            }}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded"
+            disabled={browsers.length === 0}
+          >
+            Close All Browsers
+          </button>
         </Box>
       </div>
 
@@ -306,70 +326,73 @@ const Automation = () => {
       >
         <h2 className="text-xl mb-4">Active Browsers</h2>
         <div className="grid grid-cols-2 gap-4">
-          {browsers.map((browser) => (
-            <>
-              <div
-                key={browser.sessionId}
-                className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
-              >
-                <div className="p-2 bg-gray-100 flex justify-between items-center">
-                  <p className="truncate text-sm flex-1">{browser.url}</p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleScroll(browser.sessionId)}
-                      className={`px-2 py-1 text-sm rounded ${
-                        browser.isScrolling
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
-                    </button>
-                    <button
-                      onClick={() => handleRandomClick(browser.sessionId)}
-                      className={`px-2 py-1 text-sm rounded ${
-                        browser.isAutoClicking
-                          ? "bg-purple-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {browser.isAutoClicking
-                        ? "Stop Clicking"
-                        : "Start Auto Click"}
-                    </button>
-                    <button
-                      onClick={() => handleCloseBrowser(browser.sessionId)}
-                      className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
-                    >
-                      Close
-                    </button>
+          {browsers.map((browser) => {
+            console.log(browser.url, "browser.url");
+            return (
+              <>
+                <div
+                  key={browser.sessionId}
+                  className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
+                >
+                  <div className="p-2 bg-gray-100 flex justify-between items-center">
+                    <p className="truncate text-sm flex-1">{browser.url}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleScroll(browser.sessionId)}
+                        className={`px-2 py-1 text-sm rounded ${
+                          browser.isScrolling
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                      </button>
+                      <button
+                        onClick={() => handleRandomClick(browser.sessionId)}
+                        className={`px-2 py-1 text-sm rounded ${
+                          browser.isAutoClicking
+                            ? "bg-purple-500 text-white"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {browser.isAutoClicking
+                          ? "Stop Clicking"
+                          : "Start Auto Click"}
+                      </button>
+                      <button
+                        onClick={() => handleCloseBrowser(browser.sessionId)}
+                        className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="relative w-full" style={{ height: "300px" }}>
-                  {/* <iframe
+                  <div className="relative w-full" style={{ height: "300px" }}>
+                    {/* <iframe
                     src={browser.url}
                     className="absolute inset-0 w-full h-full border-none"
                     sandbox="allow-same-origin allow-scripts"
                     title={`Preview of ${browser.url}`}
                   /> */}
-                  <iframe
-                    src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
-                    className="absolute inset-0 w-full h-full border-none"
-                    sandbox="allow-same-origin allow-scripts allow-forms"
-                    data-session-id={browser.sessionId}
-                    title={`Preview of ${browser.url}`}
-                    // referrerPolicy="no-referrer"s
-                  />
+                    <iframe
+                      src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
+                      className="absolute inset-0 w-full h-full border-none"
+                      sandbox="allow-same-origin allow-scripts allow-forms"
+                      data-session-id={browser.sessionId}
+                      title={`Preview of ${browser.url}`}
+                      // referrerPolicy="no-referrer"s
+                    />
+                  </div>
+                  <div className="flex flex-col flex-1">
+                    <p className="truncate text-sm">{browser.url}</p>
+                    {browser.ip && (
+                      <p className="text-xs text-gray-600">IP: {browser.ip}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-col flex-1">
-                  <p className="truncate text-sm">{browser.url}</p>
-                  {browser.ip && (
-                    <p className="text-xs text-gray-600">IP: {browser.ip}</p>
-                  )}
-                </div>
-              </div>
-            </>
-          ))}
+              </>
+            );
+          })}
           {browsers.length === 0 && (
             <p className="text-gray-500 text-center col-span-2">
               No active browsers

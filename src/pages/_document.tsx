@@ -27,6 +27,7 @@ export default class MyDocument extends Document {
         <body>
           <Main />
           <NextScript />
+
           {/* <script src="/automation-scripts/addClicks.js"></script> */}
         </body>
       </Html>

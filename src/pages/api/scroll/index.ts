@@ -8,6 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { url } = req.query;
+    console.log('🔍 Fetching URL:', url);
     
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'URL parameter is required' });
@@ -80,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               scrollDirection = 1;
             }
           }
-
+console.log("script loaded successfully from web speed",window.location.href);
           window.addEventListener('message', function(event) {
             const { type, command, speed } = event.data;
             if (type === 'SCROLL_CONTROL') {
