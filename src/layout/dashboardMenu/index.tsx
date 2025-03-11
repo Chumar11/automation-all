@@ -37,7 +37,7 @@ import Image from "next/image";
 import Logout from "@mui/icons-material/Logout";
 import Settings from "@mui/icons-material/Settings";
 import PersonAdd from "@mui/icons-material/PersonAdd";
-import { Person } from "@mui/icons-material";
+import { Person, YoutubeSearchedFor } from "@mui/icons-material";
 import { themColor } from "@/src/theme/themColor";
 
 export default function DashboardMenu({ ...props }) {
@@ -65,6 +65,11 @@ export default function DashboardMenu({ ...props }) {
       title: "Automation",
       path: "/automation",
       icon: <WidgetsRoundedIcon />,
+    },
+    {
+      title: "Youtube",
+      path: "/youtube",
+      icon: <YoutubeSearchedFor />,
     },
     // {
     //   title: "Widget",

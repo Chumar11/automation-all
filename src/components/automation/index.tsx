@@ -191,6 +191,20 @@ const Automation = () => {
           };
         }),
       ]);
+      setForBack((prev) => [
+        ...prev,
+        ...successfulResponses.map((data) => {
+          // Store the initial URL for this session
+          initialUrls.current[data.sessionId] = url;
+          return {
+            sessionId: data.sessionId,
+            url,
+            status: "active",
+            isScrolling: false,
+            ip: data.ip,
+          };
+        }),
+      ]);
       setUrl("");
     } catch (error) {
       console.error("Error opening website:", error);
