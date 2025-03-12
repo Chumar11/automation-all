@@ -35,7 +35,7 @@ const fetchChannelId = async (channelName:any) => {
 
 const fetchAllVideos = async (channelId:any) => {
   const API_KEY = 'AIzaSyACuc2pmr2NOBbFwqXUOmGd8kkKRY9-tco';
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=50&key=${API_KEY}&type=video`;
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=100&key=${API_KEY}&type=video`;
 
   const response = await axios.get(url);
   return response.data.items;
