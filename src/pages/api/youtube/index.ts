@@ -1,10 +1,12 @@
-import { browserManager } from "@/src/lib/driverStore";
+
 import { BrowserSession } from "@/src/lib/models/browser";
 import User from "@/src/lib/models/users";
 import { NextApiRequest, NextApiResponse } from "next";
 import { chromium, BrowserContext } from "playwright";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import { YoutubeSession } from "@/src/lib/models/youtube";
+import { browserManager } from "@/src/lib/youtubeStore";
 
 const WEBSHARE_API_KEY = "efh1qw8bk5arhvxbnktcnwksbzowqcybgm34ijhb";
 
@@ -72,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    const activeBrowserCount = await BrowserSession.countDocuments({ userId, status: "active" });
+    const activeBrowserCount = await YoutubeSession.countDocuments({ userId, status: "active" });
     if (activeBrowserCount >= user.browserLimit) {
       return res.status(403).json({ success: false, error: `Browser limit reached. Maximum allowed: ${user.browserLimit}` });
     }

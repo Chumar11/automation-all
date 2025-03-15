@@ -64,7 +64,9 @@ export default function Home() {
   useEffect(() => {
     const fetchActiveBrowsers = async () => {
       try {
-        const response = await fetch(`/api/driver/sessions?userId=${user._id}`);
+        const response = await fetch(
+          `/api/youtube/sessions?userId=${user._id}`
+        );
         const data = await response.json();
         if (data.success) {
           setBrowsers(
@@ -148,23 +150,37 @@ export default function Home() {
     },
     [scrollSpeed]
   );
-  const handleOpenWebsite = async () => {
+  const handleOpenWebsite = async (url: string) => {
     if (!url.trim()) {
       alert("Please enter a valid URL.");
       return;
     }
 
+    // Extract the video ID from the YouTube URL
+    const videoIdMatch = url.match(
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/
+    );
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+    if (!videoId) {
+      alert("Please enter a valid YouTube URL.");
+      return;
+    }
+
+    // Construct the YouTube embed URL
+    const youtubeEmbedUrl = `https://www.youtube.com/embed/${videoId}`;
+
     setLoading(true);
     try {
       const responses = await Promise.all(
         Array.from({ length: numInstances ?? 1 }, async () => {
-          const response = await fetch("/api/driver", {
+          const response = await fetch("/api/youtube", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              url,
+              url: youtubeEmbedUrl,
               userId: user._id,
             }),
           });
@@ -182,10 +198,10 @@ export default function Home() {
         ...prev,
         ...successfulResponses.map((data) => {
           // Store the initial URL for this session
-          initialUrls.current[data.sessionId] = url;
+          initialUrls.current[data.sessionId] = youtubeEmbedUrl;
           return {
             sessionId: data.sessionId,
-            url,
+            url: youtubeEmbedUrl,
             status: "active",
             isScrolling: false,
             ip: data.ip,
@@ -196,10 +212,10 @@ export default function Home() {
         ...prev,
         ...successfulResponses.map((data) => {
           // Store the initial URL for this session
-          initialUrls.current[data.sessionId] = url;
+          initialUrls.current[data.sessionId] = youtubeEmbedUrl;
           return {
             sessionId: data.sessionId,
-            url,
+            url: youtubeEmbedUrl,
             status: "active",
             isScrolling: false,
             ip: data.ip,
@@ -215,7 +231,7 @@ export default function Home() {
   };
   const handleCloseBrowser = async (sessionId: string) => {
     try {
-      const response = await fetch("/api/driver/close", {
+      const response = await fetch("/api/youtube/close", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -342,7 +358,35 @@ export default function Home() {
     setVideos(data.videos);
     setLoader(false);
   };
+  const [areVideosPlaying, setAreVideosPlaying] = useState(false);
 
+  const handleToggleVideos = () => {
+    browsers.forEach((browser) => {
+      const iframe = document.querySelector(
+        `iframe[data-session-id="${browser.sessionId}"]`
+      ) as HTMLIFrameElement;
+
+      if (iframe && iframe.contentWindow) {
+        try {
+          // Send a message to the iframe to start or stop the video
+          iframe.contentWindow.postMessage(
+            {
+              type: areVideosPlaying ? "STOP_VIDEO" : "START_VIDEO",
+            },
+            "*"
+          );
+        } catch (error) {
+          console.error(
+            `Error toggling video for session ${browser.sessionId}:`,
+            error
+          );
+        }
+      }
+    });
+
+    // Toggle the state
+    setAreVideosPlaying((prev) => !prev);
+  };
   return (
     <div className="flex">
       {/* <h1 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h1>
@@ -423,9 +467,12 @@ export default function Home() {
                 className="border rounded-lg overflow-hidden shadow-lg"
               >
                 <a
-                  href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href=""
+                  onClick={() =>
+                    handleOpenWebsite(
+                      `https://www.youtube.com/watch?v=${video.id.videoId}`
+                    )
+                  }
                   className="block"
                 >
                   <img
@@ -455,75 +502,83 @@ export default function Home() {
         }}
       >
         <h2 className="text-xl mb-4">Active Browsers</h2>
+        <div className="mb-4">
+          <button
+            onClick={handleToggleVideos}
+            className={`px-4 py-2 rounded ${
+              areVideosPlaying
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            {areVideosPlaying ? "Stop All Videos" : "Start All Videos"}
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-4">
-          {/* {browsers.map((browser) => {
-            // console.log("browser", browser);
-            // const showBackArrow = browser.url !== browser.url; // Always false, but you can adjust this logic
-            // console.log("browser", showBackArrow);
-            return (
-              <div
-                key={browser.sessionId}
-                className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
-              >
-                <div className="p-2 bg-gray-100 flex justify-between items-center">
-                  {showBackArrow && (
-                    <button
-                      onClick={() => handleNavigateBack(browser.sessionId)}
-                      className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
-                    >
-                      <ArrowBackIcon fontSize="small" />
-                    </button>
-                  )}
-                  <p className="truncate text-sm flex-1">{browser.url}</p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleScroll(browser.sessionId)}
-                      className={`px-2 py-1 text-sm rounded ${
-                        browser.isScrolling
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
-                    </button>
-                    <button
-                      onClick={() => handleRandomClick(browser.sessionId)}
-                      className={`px-2 py-1 text-sm rounded ${
-                        browser.isAutoClicking
-                          ? "bg-purple-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {browser.isAutoClicking
-                        ? "Stop Clicking"
-                        : "Start Auto Click"}
-                    </button>
-                    <button
-                      onClick={() => handleCloseBrowser(browser.sessionId)}
-                      className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-                <div className="relative w-full" style={{ height: "300px" }}>
-                  <iframe
-                    src={`/api/scroll?url=${encodeURIComponent(browser.url)}`}
-                    className="absolute inset-0 w-full h-full border-none"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
-                    data-session-id={browser.sessionId}
-                    title={`Preview of ${browser.url}`}
-                  />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <p className="truncate text-sm">{browser.url}</p>
-                  {browser.ip && (
-                    <p className="text-xs text-gray-600">IP: {browser.ip}</p>
-                  )}
+          {browsers.map((browser) => (
+            <div
+              key={browser.sessionId}
+              className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
+            >
+              <div className="p-2 bg-gray-100 flex justify-between items-center">
+                {showBackArrow && (
+                  <button
+                    onClick={() => handleNavigateBack(browser.sessionId)}
+                    className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
+                  >
+                    <ArrowBackIcon fontSize="small" />
+                  </button>
+                )}
+                <p className="truncate text-sm flex-1">{browser.url}</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleScroll(browser.sessionId)}
+                    className={`px-2 py-1 text-sm rounded ${
+                      browser.isScrolling
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
+                  </button>
+                  <button
+                    onClick={() => handleRandomClick(browser.sessionId)}
+                    className={`px-2 py-1 text-sm rounded ${
+                      browser.isAutoClicking
+                        ? "bg-purple-500 text-white"
+                        : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    {browser.isAutoClicking
+                      ? "Stop Clicking"
+                      : "Start Auto Click"}
+                  </button>
+                  <button
+                    onClick={() => handleCloseBrowser(browser.sessionId)}
+                    className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
-            );
-          })} */}
+              <div className="relative w-full" style={{ height: "300px" }}>
+                <iframe
+                  src={`/api/click?url=${encodeURIComponent(browser.url)}`}
+                  className="absolute inset-0 w-full h-full border-none"
+                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  data-session-id={browser.sessionId}
+                  title={`Preview of ${browser.url}`}
+                />
+              </div>
+              <div className="flex flex-col flex-1">
+                <p className="truncate text-sm">{browser.url}</p>
+                {browser.ip && (
+                  <p className="text-xs text-gray-600">IP: {browser.ip}</p>
+                )}
+              </div>
+            </div>
+          ))}
           {browsers.length === 0 && (
             <p className="text-gray-500 text-center col-span-2">
               No active browsers
