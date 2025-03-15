@@ -467,7 +467,7 @@ export default function Home() {
                 className="border rounded-lg overflow-hidden shadow-lg"
               >
                 <a
-                  href=""
+                  href="#"
                   onClick={() =>
                     handleOpenWebsite(
                       `https://www.youtube.com/watch?v=${video.id.videoId}`
