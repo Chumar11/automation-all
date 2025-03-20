@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useMemo } from "react";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import the arrow icon
 
 import toast from "react-hot-toast";
@@ -29,7 +30,8 @@ export default function Home() {
   const [forBack, setForBack] = useState<BrowserSession[]>([]);
   const [numInstances, setNumInstances] = useState<number | null>(1); // New state for number input
   const initialUrls = useRef<{ [sessionId: string]: string }>({});
-
+  const [timeInMinutes, setTimeInMinutes] = useState<number | null>(null); // State for time input
+  const [savedUrls, setSavedUrls] = useState<string[]>([]); // State to store opened browser URLs
   console.log(forBack, "forBack");
   const showBackArrow = true; // Always show the back arrow
   console.log("initialUrls", initialUrls);
@@ -171,6 +173,7 @@ export default function Home() {
     const youtubeEmbedUrl = `https://www.youtube.com/embed/${videoId}`;
 
     setLoading(true);
+    const toastId = toast.loading("Opening browser..."); // Show loading toast
     try {
       const responses = await Promise.all(
         Array.from({ length: numInstances ?? 1 }, async () => {
@@ -190,41 +193,37 @@ export default function Home() {
 
       const successfulResponses = responses.filter((data) => data.success);
       if (successfulResponses.length === 0) {
-        alert("Failed to open any browsers. Please try again.");
+        toast.error("Failed to open any browsers. Please try again.", {
+          id: toastId,
+        });
         return;
       }
 
       setBrowsers((prev) => [
         ...prev,
-        ...successfulResponses.map((data) => {
-          // Store the initial URL for this session
-          initialUrls.current[data.sessionId] = youtubeEmbedUrl;
-          return {
-            sessionId: data.sessionId,
-            url: youtubeEmbedUrl,
-            status: "active",
-            isScrolling: false,
-            ip: data.ip,
-          };
-        }),
+        ...successfulResponses.map((data) => ({
+          sessionId: data.sessionId,
+          url: youtubeEmbedUrl,
+          status: "active",
+          isScrolling: false,
+          ip: data.ip,
+        })),
       ]);
       setForBack((prev) => [
         ...prev,
-        ...successfulResponses.map((data) => {
-          // Store the initial URL for this session
-          initialUrls.current[data.sessionId] = youtubeEmbedUrl;
-          return {
-            sessionId: data.sessionId,
-            url: youtubeEmbedUrl,
-            status: "active",
-            isScrolling: false,
-            ip: data.ip,
-          };
-        }),
+        ...successfulResponses.map((data) => ({
+          sessionId: data.sessionId,
+          url: youtubeEmbedUrl,
+          status: "active",
+          isScrolling: false,
+          ip: data.ip,
+        })),
       ]);
       setUrl("");
+      toast.success("Browsers opened successfully!", { id: toastId }); // Success toast
     } catch (error) {
       console.error("Error opening website:", error);
+      toast.error("An error occurred while opening browsers.", { id: toastId }); // Error toast
     } finally {
       setLoading(false);
     }
@@ -294,6 +293,11 @@ export default function Home() {
   //     setForBack(browsers);
   //   }
   // }, []);
+  // useEffect(() => {
+  //   if (loading) {
+  //     toast.loading("Loading");
+  //   }
+  // }, [loading]);
   const handleNavigateBack = (sessionId: string) => {
     const currentBrowser = browsers.find((b) => b.sessionId === sessionId);
     const originalBrowser = forBack.find((b) => b.sessionId === sessionId);
@@ -387,6 +391,71 @@ export default function Home() {
     // Toggle the state
     setAreVideosPlaying((prev) => !prev);
   };
+
+  const handleSetTimer = () => {
+    if (!timeInMinutes || timeInMinutes <= 0) {
+      alert("Please enter a valid time in minutes.");
+      return;
+    }
+
+    const timeInMilliseconds = timeInMinutes * 60 * 1000;
+
+    setTimeout(async () => {
+      try {
+        // Close all browsers
+        for (const browser of browsers) {
+          await handleCloseBrowser(browser.sessionId);
+        }
+        console.log("forBack", forBack);
+        const urls = forBack.map((url) => url.url);
+        // Reopen browsers with saved URLs
+        const responses = await Promise.all(
+          forBack.map(async (url) => {
+            const response = await fetch("/api/youtube", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url: url.url,
+                userId: user._id,
+              }),
+            });
+            return response.json();
+          })
+        );
+        console.log("responses", responses);
+        console.log(
+          "responses",
+          responses.filter((data) => data.success)
+        );
+        const successfulResponses = responses.filter((data) => data.success);
+        if (successfulResponses.length > 0) {
+          console.log("successfulResponses", successfulResponses);
+          setBrowsers(
+            successfulResponses.map((data) => ({
+              sessionId: data.sessionId,
+              url: urls[0],
+              status: "active",
+              isScrolling: false,
+              ip: data.ip,
+            }))
+          );
+        } else {
+          alert("Failed to reopen browsers. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error during timer operation:", error);
+      }
+    }, timeInMilliseconds);
+
+    alert(`Browsers will close and reopen in ${timeInMinutes} minutes.`);
+  };
+  useEffect(() => {
+    const urls = browsers.map((browser) => browser.url);
+    setSavedUrls(urls);
+  }, [browsers]);
+  console.log(savedUrls, "savedUrls");
   return (
     <div className="flex">
       {/* <h1 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h1>
@@ -502,7 +571,7 @@ export default function Home() {
         }}
       >
         <h2 className="text-xl mb-4">Active Browsers</h2>
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-4">
           <button
             onClick={handleToggleVideos}
             className={`px-4 py-2 rounded ${
@@ -513,7 +582,23 @@ export default function Home() {
           >
             {areVideosPlaying ? "Stop All Videos" : "Start All Videos"}
           </button>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              placeholder="Enter time in minutes"
+              value={timeInMinutes || ""}
+              onChange={(e) => setTimeInMinutes(Number(e.target.value))}
+              className="px-4 py-2 border rounded"
+            />
+            <button
+              onClick={handleSetTimer}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Set Timer
+            </button>
+          </div>
         </div>
+
         <div className="grid grid-cols-2 gap-4">
           {browsers.map((browser) => (
             <div
