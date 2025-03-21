@@ -405,9 +405,11 @@ export default function Home() {
         // Close all browsers
         for (const browser of browsers) {
           await handleCloseBrowser(browser.sessionId);
+          toast.success("Browser closed successfully");
         }
+        toast.loading("Reopening browsers...");
         console.log("forBack", forBack);
-        const urls = forBack.map((url) => url.url);
+        const urls: any = forBack.map((url) => url.url);
         // Reopen browsers with saved URLs
         const responses = await Promise.all(
           forBack.map(async (url) => {
@@ -429,18 +431,20 @@ export default function Home() {
           "responses",
           responses.filter((data) => data.success)
         );
+        console.log(urls[0], "urls");
         const successfulResponses = responses.filter((data) => data.success);
         if (successfulResponses.length > 0) {
           console.log("successfulResponses", successfulResponses);
           setBrowsers(
-            successfulResponses.map((data) => ({
+            successfulResponses.map((data, index) => ({
               sessionId: data.sessionId,
-              url: urls[0],
+              url: forBack[index].url, // Ensure each browser gets its specific URL
               status: "active",
               isScrolling: false,
               ip: data.ip,
             }))
           );
+          toast.success("Browsers reopened successfully");
         } else {
           alert("Failed to reopen browsers. Please try again.");
         }
@@ -597,6 +601,24 @@ export default function Home() {
               Set Timer
             </button>
           </div>
+          <button
+            onClick={async () => {
+              try {
+                await Promise.all(
+                  browsers.map((browser) =>
+                    handleCloseBrowser(browser.sessionId)
+                  )
+                );
+                toast.success("All browsers closed successfully");
+              } catch (error) {
+                console.error("Error closing all browsers:", error);
+              }
+            }}
+            className=" px-4 py-2 bg-red-600 text-white rounded"
+            disabled={browsers.length === 0}
+          >
+            Close All Browsers
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -606,38 +628,8 @@ export default function Home() {
               className="flex flex-col bg-white rounded-lg shadow overflow-hidden"
             >
               <div className="p-2 bg-gray-100 flex justify-between items-center">
-                {showBackArrow && (
-                  <button
-                    onClick={() => handleNavigateBack(browser.sessionId)}
-                    className="px-2 py-1 text-sm text-blue-500 hover:bg-blue-50 rounded"
-                  >
-                    <ArrowBackIcon fontSize="small" />
-                  </button>
-                )}
                 <p className="truncate text-sm flex-1">{browser.url}</p>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleScroll(browser.sessionId)}
-                    className={`px-2 py-1 text-sm rounded ${
-                      browser.isScrolling
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    {browser.isScrolling ? "Stop Scroll" : "Start Scroll"}
-                  </button>
-                  <button
-                    onClick={() => handleRandomClick(browser.sessionId)}
-                    className={`px-2 py-1 text-sm rounded ${
-                      browser.isAutoClicking
-                        ? "bg-purple-500 text-white"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    {browser.isAutoClicking
-                      ? "Stop Clicking"
-                      : "Start Auto Click"}
-                  </button>
                   <button
                     onClick={() => handleCloseBrowser(browser.sessionId)}
                     className="px-2 py-1 text-sm text-red-500 hover:bg-red-50 rounded"
