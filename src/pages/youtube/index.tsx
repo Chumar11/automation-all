@@ -7,8 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useMemo } from "react";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import the arrow icon
 
 import toast from "react-hot-toast";
 interface BrowserSession {
@@ -30,6 +28,7 @@ export default function Home() {
   const [forBack, setForBack] = useState<BrowserSession[]>([]);
   const [numInstances, setNumInstances] = useState<number | null>(1); // New state for number input
   const initialUrls = useRef<{ [sessionId: string]: string }>({});
+  const [timerText, setTimerText] = useState("Set Timer");
   const [timeInMinutes, setTimeInMinutes] = useState<number | null>(null); // State for time input
   const [savedUrls, setSavedUrls] = useState<string[]>([]); // State to store opened browser URLs
   console.log(forBack, "forBack");
@@ -228,6 +227,66 @@ export default function Home() {
       setLoading(false);
     }
   };
+  const [numVideos, setNumVideos] = useState<number | null>(null); // Number of videos to open
+  const [browsersPerVideo, setBrowsersPerVideo] = useState<number | null>(null); // Number of browsers per video
+
+  const handleStartProcess = async () => {
+    if (!numVideos || !browsersPerVideo) {
+      alert("Please enter valid numbers for videos and browsers.");
+      return;
+    }
+
+    if (numVideos > videos.length) {
+      alert("The number of videos exceeds the fetched videos.");
+      return;
+    }
+
+    const selectedVideos = videos.slice(0, numVideos); // Select the first 'numVideos' videos
+    const toastId = toast.loading("Opening browsers...");
+
+    try {
+      for (const video of selectedVideos) {
+        const youtubeEmbedUrl = `https://www.youtube.com/embed/${video.id.videoId}`;
+
+        const responses = await Promise.all(
+          Array.from({ length: browsersPerVideo }, async () => {
+            const response = await fetch("/api/youtube", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                url: youtubeEmbedUrl,
+                userId: user._id,
+              }),
+            });
+            return response.json();
+          })
+        );
+
+        const successfulResponses = responses.filter((data) => data.success);
+        if (successfulResponses.length > 0) {
+          setBrowsers((prev) => [
+            ...prev,
+            ...successfulResponses.map((data) => ({
+              sessionId: data.sessionId,
+              url: youtubeEmbedUrl,
+              status: "active",
+              isScrolling: false,
+              ip: data.ip,
+            })),
+          ]);
+        }
+      }
+
+      toast.success("Browsers opened successfully!", { id: toastId });
+    } catch (error) {
+      console.error("Error during the process:", error);
+      toast.error("An error occurred while opening browsers.", { id: toastId });
+    } finally {
+      toast.dismiss(toastId);
+    }
+  };
   const handleCloseBrowser = async (sessionId: string) => {
     try {
       const response = await fetch("/api/youtube/close", {
@@ -399,17 +458,44 @@ export default function Home() {
     }
 
     const timeInMilliseconds = timeInMinutes * 60 * 1000;
+    const endTime = Date.now() + timeInMilliseconds;
+
+    // Show loading toast
+    const toastId = toast.loading("Timer started...");
+
+    // Update the button text dynamically
+    const intervalId = setInterval(() => {
+      const timeLeft = Math.max(0, endTime - Date.now());
+      const minutesLeft = Math.floor(timeLeft / (60 * 1000));
+      const secondsLeft = Math.floor((timeLeft % (60 * 1000)) / 1000);
+
+      setTimerText(
+        timeLeft > 0
+          ? `Time Left: ${minutesLeft}m ${secondsLeft}s`
+          : "Set Timer"
+      );
+
+      if (timeLeft <= 0) {
+        clearInterval(intervalId);
+      }
+    }, 1000);
 
     setTimeout(async () => {
+      clearInterval(intervalId); // Clear the interval when the timer ends
+      setTimerText("Set Timer"); // Reset the button text
+
+      // Dismiss the loading toast
+      toast.dismiss(toastId);
+
       try {
         // Close all browsers
         for (const browser of browsers) {
           await handleCloseBrowser(browser.sessionId);
           toast.success("Browser closed successfully");
         }
-        toast.loading("Reopening browsers...");
+        toast.success("Reopening browsers...");
         console.log("forBack", forBack);
-        const urls: any = forBack.map((url) => url.url);
+
         // Reopen browsers with saved URLs
         const responses = await Promise.all(
           forBack.map(async (url) => {
@@ -426,15 +512,9 @@ export default function Home() {
             return response.json();
           })
         );
-        console.log("responses", responses);
-        console.log(
-          "responses",
-          responses.filter((data) => data.success)
-        );
-        console.log(urls[0], "urls");
+
         const successfulResponses = responses.filter((data) => data.success);
         if (successfulResponses.length > 0) {
-          console.log("successfulResponses", successfulResponses);
           setBrowsers(
             successfulResponses.map((data, index) => ({
               sessionId: data.sessionId,
@@ -462,52 +542,6 @@ export default function Home() {
   console.log(savedUrls, "savedUrls");
   return (
     <div className="flex">
-      {/* <h1 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h1>
-      <div className="mb-4 flex gap-2">
-        <input
-          type="text"
-          placeholder="Enter channel name"
-          value={channelName}
-          onChange={(e) => setChannelName(e.target.value)}
-          className="px-4 py-2 border rounded"
-        />
-        <button
-          onClick={fetchVideos}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Fetch Videos
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {videos.map((video) => (
-          <div
-            key={video.id.videoId}
-            className="border rounded-lg overflow-hidden shadow-lg"
-          >
-            <a
-              href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-            >
-              <img
-                src={video.snippet.thumbnails.medium.url}
-                alt={video.snippet.title}
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-4">
-                <h2 className="font-semibold text-lg mb-2 line-clamp-2">
-                  {video.snippet.title}
-                </h2>
-                <p className="text-gray-600 text-sm line-clamp-2">
-                  {video.snippet.description}
-                </p>
-              </div>
-            </a>
-          </div>
-        ))}
-      </div> */}
       <div className="w-1/4 p-4 border-r">
         <h1 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h1>
         <div className="flex flex-col gap-4">
@@ -524,6 +558,28 @@ export default function Home() {
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
             {loader ? "..loading" : "Fetch Videos"}
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col gap-4">
+          <input
+            type="number"
+            placeholder="Number of videos to open"
+            value={numVideos || ""}
+            onChange={(e) => setNumVideos(Number(e.target.value))}
+            className="px-4 py-2 border rounded"
+          />
+          <input
+            type="number"
+            placeholder="Number of browsers per video"
+            value={browsersPerVideo || ""}
+            onChange={(e) => setBrowsersPerVideo(Number(e.target.value))}
+            className="px-4 py-2 border rounded"
+          />
+          <button
+            onClick={handleStartProcess}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Start Process
           </button>
         </div>
         <Card
@@ -598,7 +654,7 @@ export default function Home() {
               onClick={handleSetTimer}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
-              Set Timer
+              {timerText}
             </button>
           </div>
           <button
