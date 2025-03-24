@@ -14,8 +14,8 @@ interface BrowserSession {
   url: string;
   status: string;
   isScrolling: boolean;
-  ip?: string; // Add IP field
-  isAutoClicking?: boolean; // Renamed from isClickingAds
+  ip?: string;
+  isAutoClicking?: boolean;
 }
 export default function Home() {
   const { user }: any = useContext(AuthContext);

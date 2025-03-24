@@ -4,7 +4,7 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 console.log(" baseUrl", baseUrl);
 
 const http = axios.create({
-  baseURL: `${baseUrl}/api`,
+  baseURL: `/api`,
   timeout: 30000,
 });
 
